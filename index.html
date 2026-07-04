@@ -1,0 +1,110 @@
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#fff;font-family:system-ui,-apple-system,sans-serif;}
+canvas{display:block;border-radius:12px;border:1.5px solid #e8e8e8;touch-action:none;}
+.fml{font-size:13px;padding:10px 16px;border-radius:20px;background:#f5f5f5;border:1.5px solid #d0d0d0;color:#2c2c2a;margin:6px 0;font-family:ui-monospace,monospace;line-height:1.8;}
+.row{display:flex;align-items:center;gap:10px;margin:6px 0;flex-wrap:wrap;}
+.pill{font-size:13px;font-weight:500;color:#2c2c2a;background:#f5f5f5;border:1.5px solid #d0d0d0;border-radius:20px;padding:6px 14px;white-space:nowrap;}
+.btn{padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid #d0d0d0;background:#fff;color:#2c2c2a;}
+.btn.on{border-color:#185fa5;background:#e6f1fb;color:#185fa5;}
+.val{min-width:74px;text-align:center;font-size:13px;font-weight:500;color:#2c2c2a;background:#f5f5f5;border:1.5px solid #d0d0d0;border-radius:20px;padding:5px 10px;}
+.info{font-size:12px;padding:8px 14px;border-radius:20px;background:#f5f5f5;border:1.5px solid #d0d0d0;color:#555;margin:6px 0;font-family:ui-monospace,monospace;line-height:1.8;}
+input[type=range]{flex:1;min-width:110px;}
+input[type=range]:disabled{opacity:.35;}
+</style>
+
+<canvas id="cv" style="width:100%;height:60vh;min-height:340px;"></canvas>
+<div class="fml" id="fml"></div>
+
+<div class="row">
+  <span class="pill">Mouvement</span>
+  <button class="btn on" id="m0" onclick="setMode(0)">MCU (α = 0)</button>
+  <button class="btn" id="m1" onclick="setMode(1)">MCUA (α ≠ 0)</button>
+  <button class="btn on" id="bP" onclick="paused=!paused;this.textContent=paused?'Lecture':'Pause';this.className=paused?'btn':'btn on';">Pause</button>
+  <button class="btn" style="border-color:#f09595;background:#fcebeb;color:#a32d2d;" onclick="th=0;om=om0;">Recommencer</button>
+</div>
+<div class="row">
+  <span class="pill" style="min-width:120px;border-color:#b5d4f4;color:#185fa5;">R &nbsp;rayon</span>
+  <input type="range" id="R" min="0.6" max="1.6" value="1.1" step="0.1" style="accent-color:#378ADD;">
+  <span class="val" id="Rv" style="border-color:#b5d4f4;color:#185fa5;">1.1 m</span>
+</div>
+<div class="row">
+  <span class="pill" style="min-width:120px;border-color:#9FE1CB;color:#1D9E75;">ω₀ &nbsp;vit. angulaire</span>
+  <input type="range" id="w" min="-3" max="3" value="1.5" step="0.25" style="accent-color:#1D9E75;">
+  <span class="val" id="wv" style="border-color:#9FE1CB;color:#1D9E75;">1.5 rad/s</span>
+</div>
+<div class="row">
+  <span class="pill" id="albl" style="min-width:120px;border-color:#f5c88f;color:#BA7517;opacity:.4;">α &nbsp;acc. angulaire</span>
+  <input type="range" id="al" min="-1" max="1" value="0.4" step="0.1" style="accent-color:#BA7517;" disabled>
+  <span class="val" id="alv" style="border-color:#f5c88f;color:#BA7517;">0.4 rad/s²</span>
+</div>
+
+<div class="info" id="info"></div>
+
+<script>
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
+const RED='#E24B4A',BLUE='#378ADD',BLUE_D='#185fa5',GREEN='#1D9E75',ORANGE='#BA7517',DRED='#a32d2d',GREEN2='#639922',GREY='#9aa0a6',AX='#c8ccd0';
+let W=0,H=0,dpr=1,mode=0,paused=false,R=1.1,om0=1.5,al=0.4,th=0,om=1.5;
+function setMode(m){mode=m;
+  document.getElementById('m0').className=m===0?'btn on':'btn';document.getElementById('m1').className=m===1?'btn on':'btn';
+  document.getElementById('al').disabled=(m===0);document.getElementById('albl').style.opacity=m===0?'.4':'1';
+  om=om0;th=0;updateFml();}
+function updateFml(){document.getElementById('fml').innerHTML= mode===0
+  ?'<b style="color:'+BLUE_D+'">r̄ = R·1̄ₙ</b> | <b style="color:'+GREEN+'">v̄ = R·ω·1̄ₜ</b> | <b style="color:'+RED+'">ā = −R·ω²·1̄ₙ = (v²/R)·1̄ₙ</b> (centripète) | ω = cste'
+  :'<b style="color:'+GREEN+'">v̄ = R·ω·1̄ₜ</b> | <b style="color:'+DRED+'">ā</b> = <b style="color:'+ORANGE+'">R·α·1̄ₜ</b> (tang.) <b style="color:'+RED+'">− R·ω²·1̄ₙ</b> (centrip.) | ω=ω₀+αt';}
+function bind(id,fmt,f){const s=document.getElementById(id),o=document.getElementById(id+'v');
+  s.addEventListener('input',()=>{const v=parseFloat(s.value);f(v);o.textContent=fmt(v);});}
+bind('R',v=>v+' m',v=>R=v);bind('w',v=>v+' rad/s',v=>{om0=v;om=v;});bind('al',v=>v+' rad/s²',v=>al=v);
+function syncSize(){const r=cv.getBoundingClientRect();dpr=window.devicePixelRatio||1;
+  const nW=Math.round(r.width)||700,nH=Math.round(r.height)||360;
+  if(nW!==W||nH!==H){W=nW;H=nH;cv.width=W*dpr;cv.height=H*dpr;}ctx.setTransform(dpr,0,0,dpr,0,0);}
+function arrow(x,y,vx,vy,col,lab,w){const len=Math.hypot(vx,vy);if(len<3)return;const ex=x+vx,ey=y+vy;
+  ctx.strokeStyle=col;ctx.lineWidth=w||2.5;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(ex,ey);ctx.stroke();
+  const hs=(w||2.5)*3.2,ang=Math.atan2(vy,vx);ctx.fillStyle=col;ctx.save();ctx.translate(ex,ey);ctx.rotate(ang);
+  ctx.beginPath();ctx.moveTo(hs,0);ctx.lineTo(-hs*0.7,-hs*0.55);ctx.lineTo(-hs*0.7,hs*0.55);ctx.closePath();ctx.fill();ctx.restore();
+  if(lab){ctx.font='600 13px system-ui';ctx.textAlign='center';ctx.fillStyle=col;ctx.fillText(lab,ex+vx/len*16,ey+vy/len*16+4);}}
+
+function draw(){syncSize();ctx.clearRect(0,0,W,H);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
+  const cx=W*0.5,cy=H*0.52,scale=Math.min(W,H)*0.28/1.1,Rp=R*scale;
+  ctx.strokeStyle=AX;ctx.lineWidth=1.2;ctx.beginPath();ctx.moveTo(cx-Rp-46,cy);ctx.lineTo(cx+Rp+46,cy);ctx.moveTo(cx,cy+Rp+40);ctx.lineTo(cx,cy-Rp-40);ctx.stroke();
+  ctx.strokeStyle=BLUE;ctx.lineWidth=1.8;ctx.beginPath();ctx.arc(cx,cy,Rp,0,7);ctx.stroke();
+
+  const pxx=cx+Rp*Math.cos(th),pyy=cy-Rp*Math.sin(th);
+  ctx.strokeStyle=GREY;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(cx,cy,28,0,-th,th>0);ctx.stroke();
+  ctx.fillStyle=GREY;ctx.font='600 12px system-ui';ctx.textAlign='center';ctx.fillText('θ',cx+40*Math.cos(th/2),cy-40*Math.sin(th/2)+4);
+
+  // r̄
+  arrow(cx,cy,pxx-cx,pyy-cy,BLUE,'r̄ = R·1̄ₙ',2.5);
+  // vecteurs unitaires : 1̄ₙ (radial sortant), 1̄ₜ (sens du mouvement, +θ)
+  const un={x:Math.cos(th),y:-Math.sin(th)};       // sortant
+  const ut={x:-Math.sin(th),y:-Math.cos(th)};      // tangent, sens de θ croissant
+  arrow(pxx,pyy,un.x*30,un.y*30,GREEN2,'1̄ₙ',1.8);
+  arrow(pxx,pyy,ut.x*30,ut.y*30,GREEN2,'1̄ₜ',1.8);
+
+  // v̄ = R·ω·1̄ₜ (signe de ω → sens)
+  const v=R*om;
+  arrow(pxx,pyy,ut.x*v*32,ut.y*v*32,GREEN,'v̄',3);
+
+  // accélérations — MÊME échelle kA pour normale et tangentielle
+  const an=R*om*om, at=(mode===1)?R*al:0, kA=30;
+  const anx=-un.x*an*kA, any=-un.y*an*kA;          // centripète (vers le centre)
+  const atx=ut.x*at*kA, aty=ut.y*at*kA;            // tangentielle
+  if(mode===0){
+    arrow(pxx,pyy,anx,any,RED,'ā = āₙ (centripète)',3);
+  }else{
+    arrow(pxx,pyy,anx,any,RED,'āₙ',2.2);
+    arrow(pxx,pyy,atx,aty,ORANGE,'āₜ',2.2);
+    ctx.setLineDash([4,4]);ctx.strokeStyle='#e0b7b7';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pxx+anx,pyy+any);ctx.lineTo(pxx+anx+atx,pyy+any+aty);ctx.moveTo(pxx+atx,pyy+aty);ctx.lineTo(pxx+anx+atx,pyy+any+aty);ctx.stroke();ctx.setLineDash([]);
+    arrow(pxx,pyy,anx+atx,any+aty,DRED,'ā',3.2);
+  }
+
+  ctx.fillStyle='#e6f1fb';ctx.strokeStyle=BLUE;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(pxx,pyy,8,0,7);ctx.fill();ctx.stroke();
+  ctx.fillStyle=GREY;ctx.beginPath();ctx.arc(cx,cy,3,0,7);ctx.fill();ctx.font='11px system-ui';ctx.textAlign='left';ctx.fillText('O',cx+6,cy+14);
+
+  document.getElementById('info').innerHTML='θ='+th.toFixed(2)+' rad | ω='+om.toFixed(2)+' rad/s | <b style="color:'+GREEN+'">|v|=R·ω='+Math.abs(v).toFixed(2)+' m/s</b> | <b style="color:'+RED+'">aₙ=R·ω²=v²/R='+an.toFixed(2)+' m/s²</b>'+(mode===1?' | <b style="color:'+ORANGE+'">aₜ=R·α='+at.toFixed(2)+' m/s²</b>':'');
+
+  if(!paused){const dt=0.016;if(mode===1)om+=al*dt;th+=om*dt;}
+  requestAnimationFrame(draw);}
+updateFml();draw();
+</script>
