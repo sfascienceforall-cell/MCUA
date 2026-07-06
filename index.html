@@ -3,9 +3,9 @@
 body{background:#fff;font-family:system-ui,-apple-system,sans-serif;}
 canvas{display:block;border-radius:12px;border:1.5px solid #e8e8e8;touch-action:none;}
 .fml{font-size:13px;padding:10px 16px;border-radius:20px;background:#f5f5f5;border:1.5px solid #d0d0d0;color:#2c2c2a;margin:6px 0;font-family:ui-monospace,monospace;line-height:1.8;}
-.row{display:flex;align-items:center;gap:10px;margin:6px 0;flex-wrap:wrap;}
+.row{display:flex;align-items:center;gap:8px;margin:6px 0;flex-wrap:wrap;}
 .pill{font-size:13px;font-weight:500;color:#2c2c2a;background:#f5f5f5;border:1.5px solid #d0d0d0;border-radius:20px;padding:6px 14px;white-space:nowrap;}
-.btn{padding:8px 16px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid #d0d0d0;background:#fff;color:#2c2c2a;}
+.btn{padding:7px 14px;border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;border:1.5px solid #d0d0d0;background:#fff;color:#2c2c2a;}
 .btn.on{border-color:#185fa5;background:#e6f1fb;color:#185fa5;}
 .val{min-width:74px;text-align:center;font-size:13px;font-weight:500;color:#2c2c2a;background:#f5f5f5;border:1.5px solid #d0d0d0;border-radius:20px;padding:5px 10px;}
 .info{font-size:12px;padding:8px 14px;border-radius:20px;background:#f5f5f5;border:1.5px solid #d0d0d0;color:#555;margin:6px 0;font-family:ui-monospace,monospace;line-height:1.8;}
@@ -13,7 +13,7 @@ input[type=range]{flex:1;min-width:110px;}
 input[type=range]:disabled{opacity:.35;}
 </style>
 
-<canvas id="cv" style="width:100%;height:60vh;min-height:340px;"></canvas>
+<canvas id="cv" style="width:100%;height:58vh;min-height:340px;"></canvas>
 <div class="fml" id="fml"></div>
 
 <div class="row">
@@ -24,11 +24,14 @@ input[type=range]:disabled{opacity:.35;}
   <button class="btn" style="border-color:#f09595;background:#fcebeb;color:#a32d2d;" onclick="th=0;om=om0;">Recommencer</button>
 </div>
 <div class="row">
+  <button class="btn on" id="bV" onclick="showV=!showV;this.className=showV?'btn on':'btn';">Vitesse v̄</button>
+  <button class="btn on" id="bA" onclick="showA=!showA;this.className=showA?'btn on':'btn';">Accélération ā</button>
+  <button class="btn" id="bUn" onclick="showUn=!showUn;this.className=showUn?'btn on':'btn';">Vecteurs unitaires 1̄ₙ, 1̄ₜ</button>
+</div>
+<div class="row">
   <span class="pill" style="min-width:120px;border-color:#b5d4f4;color:#185fa5;">R &nbsp;rayon</span>
   <input type="range" id="R" min="0.6" max="1.6" value="1.1" step="0.1" style="accent-color:#378ADD;">
   <span class="val" id="Rv" style="border-color:#b5d4f4;color:#185fa5;">1.1 m</span>
-</div>
-<div class="row">
   <span class="pill" style="min-width:120px;border-color:#9FE1CB;color:#1D9E75;">ω₀ &nbsp;vit. angulaire</span>
   <input type="range" id="w" min="-3" max="3" value="1.5" step="0.25" style="accent-color:#1D9E75;">
   <span class="val" id="wv" style="border-color:#9FE1CB;color:#1D9E75;">1.5 rad/s</span>
@@ -43,8 +46,9 @@ input[type=range]:disabled{opacity:.35;}
 
 <script>
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d');
-const RED='#E24B4A',BLUE='#378ADD',BLUE_D='#185fa5',GREEN='#1D9E75',ORANGE='#BA7517',DRED='#a32d2d',GREEN2='#639922',GREY='#9aa0a6',AX='#c8ccd0';
+const RED='#E24B4A',BLUE='#378ADD',BLUE_D='#185fa5',GREEN='#1D9E75',ORANGE='#BA7517',DRED='#a32d2d',UNIT='#8a8f96',GREY='#9aa0a6',AX='#c8ccd0';
 let W=0,H=0,dpr=1,mode=0,paused=false,R=1.1,om0=1.5,al=0.4,th=0,om=1.5;
+let showV=true,showA=true,showUn=false;
 function setMode(m){mode=m;
   document.getElementById('m0').className=m===0?'btn on':'btn';document.getElementById('m1').className=m===1?'btn on':'btn';
   document.getElementById('al').disabled=(m===0);document.getElementById('albl').style.opacity=m===0?'.4':'1';
@@ -58,11 +62,12 @@ bind('R',v=>v+' m',v=>R=v);bind('w',v=>v+' rad/s',v=>{om0=v;om=v;});bind('al',v=
 function syncSize(){const r=cv.getBoundingClientRect();dpr=window.devicePixelRatio||1;
   const nW=Math.round(r.width)||700,nH=Math.round(r.height)||360;
   if(nW!==W||nH!==H){W=nW;H=nH;cv.width=W*dpr;cv.height=H*dpr;}ctx.setTransform(dpr,0,0,dpr,0,0);}
-function arrow(x,y,vx,vy,col,lab,w){const len=Math.hypot(vx,vy);if(len<3)return;const ex=x+vx,ey=y+vy;
-  ctx.strokeStyle=col;ctx.lineWidth=w||2.5;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(ex,ey);ctx.stroke();
+function arrow(x,y,vx,vy,col,w,dash){const len=Math.hypot(vx,vy);if(len<3)return;const ex=x+vx,ey=y+vy;
+  ctx.strokeStyle=col;ctx.lineWidth=w||2.5;ctx.lineCap='round';if(dash)ctx.setLineDash(dash);
+  ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(ex,ey);ctx.stroke();ctx.setLineDash([]);
   const hs=(w||2.5)*3.2,ang=Math.atan2(vy,vx);ctx.fillStyle=col;ctx.save();ctx.translate(ex,ey);ctx.rotate(ang);
-  ctx.beginPath();ctx.moveTo(hs,0);ctx.lineTo(-hs*0.7,-hs*0.55);ctx.lineTo(-hs*0.7,hs*0.55);ctx.closePath();ctx.fill();ctx.restore();
-  if(lab){ctx.font='600 13px system-ui';ctx.textAlign='center';ctx.fillStyle=col;ctx.fillText(lab,ex+vx/len*16,ey+vy/len*16+4);}}
+  ctx.beginPath();ctx.moveTo(hs,0);ctx.lineTo(-hs*0.7,-hs*0.55);ctx.lineTo(-hs*0.7,hs*0.55);ctx.closePath();ctx.fill();ctx.restore();}
+function lbl(t,x,y,col){ctx.fillStyle=col;ctx.font='700 13px system-ui';ctx.textAlign='center';ctx.fillText(t,x,y);}
 
 function draw(){syncSize();ctx.clearRect(0,0,W,H);ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
   const cx=W*0.5,cy=H*0.52,scale=Math.min(W,H)*0.28/1.1,Rp=R*scale;
@@ -70,36 +75,53 @@ function draw(){syncSize();ctx.clearRect(0,0,W,H);ctx.fillStyle='#fff';ctx.fillR
   ctx.strokeStyle=BLUE;ctx.lineWidth=1.8;ctx.beginPath();ctx.arc(cx,cy,Rp,0,7);ctx.stroke();
 
   const pxx=cx+Rp*Math.cos(th),pyy=cy-Rp*Math.sin(th);
-  ctx.strokeStyle=GREY;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(cx,cy,28,0,-th,th>0);ctx.stroke();
-  ctx.fillStyle=GREY;ctx.font='600 12px system-ui';ctx.textAlign='center';ctx.fillText('θ',cx+40*Math.cos(th/2),cy-40*Math.sin(th/2)+4);
+  const un={x:Math.cos(th),y:-Math.sin(th)};       // radial sortant
+  const ut={x:-Math.sin(th),y:-Math.cos(th)};      // tangent (sens de θ croissant)
 
-  // r̄
-  arrow(cx,cy,pxx-cx,pyy-cy,BLUE,'r̄ = R·1̄ₙ',2.5);
-  // vecteurs unitaires : 1̄ₙ (radial sortant), 1̄ₜ (sens du mouvement, +θ)
-  const un={x:Math.cos(th),y:-Math.sin(th)};       // sortant
-  const ut={x:-Math.sin(th),y:-Math.cos(th)};      // tangent, sens de θ croissant
-  arrow(pxx,pyy,un.x*30,un.y*30,GREEN2,'1̄ₙ',1.8);
-  arrow(pxx,pyy,ut.x*30,ut.y*30,GREEN2,'1̄ₜ',1.8);
+  // arc θ
+  ctx.strokeStyle=GREY;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(cx,cy,26,0,-th,th>0);ctx.stroke();
+  lbl('θ',cx+38*Math.cos(th/2),cy-38*Math.sin(th/2)+4,GREY);
 
-  // v̄ = R·ω·1̄ₜ (signe de ω → sens)
-  const v=R*om;
-  arrow(pxx,pyy,ut.x*v*32,ut.y*v*32,GREEN,'v̄',3);
+  // r̄ (rayon)
+  arrow(cx,cy,pxx-cx,pyy-cy,BLUE,2.4);
+  lbl('r̄',cx+(pxx-cx)*0.5-un.y*14,cy+(pyy-cy)*0.5+un.x*14,BLUE_D);
 
-  // accélérations — MÊME échelle kA pour normale et tangentielle
-  const an=R*om*om, at=(mode===1)?R*al:0, kA=30;
-  const anx=-un.x*an*kA, any=-un.y*an*kA;          // centripète (vers le centre)
-  const atx=ut.x*at*kA, aty=ut.y*at*kA;            // tangentielle
-  if(mode===0){
-    arrow(pxx,pyy,anx,any,RED,'ā = āₙ (centripète)',3);
-  }else{
-    arrow(pxx,pyy,anx,any,RED,'āₙ',2.2);
-    arrow(pxx,pyy,atx,aty,ORANGE,'āₜ',2.2);
-    ctx.setLineDash([4,4]);ctx.strokeStyle='#e0b7b7';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(pxx+anx,pyy+any);ctx.lineTo(pxx+anx+atx,pyy+any+aty);ctx.moveTo(pxx+atx,pyy+aty);ctx.lineTo(pxx+anx+atx,pyy+any+aty);ctx.stroke();ctx.setLineDash([]);
-    arrow(pxx,pyy,anx+atx,any+aty,DRED,'ā',3.2);
+  // vecteurs unitaires (optionnels, discrets, en pointillés)
+  if(showUn){
+    arrow(pxx,pyy,un.x*26,un.y*26,UNIT,1.6,[4,3]);
+    arrow(pxx,pyy,ut.x*26,ut.y*26,UNIT,1.6,[4,3]);
+    lbl('1̄ₙ',pxx+un.x*40,pyy+un.y*40,UNIT);
+    lbl('1̄ₜ',pxx+ut.x*40,pyy+ut.y*40,UNIT);
   }
 
-  ctx.fillStyle='#e6f1fb';ctx.strokeStyle=BLUE;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(pxx,pyy,8,0,7);ctx.fill();ctx.stroke();
+  const v=R*om, an=R*om*om, at=(mode===1)?R*al:0, kA=30;
+  // v̄ (tangent) — étiquette côté extérieur
+  if(showV){
+    arrow(pxx,pyy,ut.x*v*32,ut.y*v*32,GREEN,3);
+    lbl('v̄',pxx+ut.x*v*32+un.x*15,pyy+ut.y*v*32+un.y*15,GREEN);
+  }
+  // accélération
+  if(showA){
+    const anx=-un.x*an*kA, any=-un.y*an*kA;    // centripète (vers le centre)
+    const atx=ut.x*at*kA, aty=ut.y*at*kA;      // tangentielle
+    if(mode===0){
+      arrow(pxx,pyy,anx,any,RED,3);
+      lbl('ā (centripète)',pxx+anx*0.6-un.x*16,pyy+any*0.6-un.y*16,RED);
+    }else{
+      // parallélogramme d'accélération (léger)
+      ctx.setLineDash([4,4]);ctx.strokeStyle='#e0b7b7';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(pxx+anx,pyy+any);ctx.lineTo(pxx+anx+atx,pyy+any+aty);ctx.moveTo(pxx+atx,pyy+aty);ctx.lineTo(pxx+anx+atx,pyy+any+aty);ctx.stroke();ctx.setLineDash([]);
+      arrow(pxx,pyy,anx,any,RED,2.2);
+      arrow(pxx,pyy,atx,aty,ORANGE,2.4);
+      arrow(pxx,pyy,anx+atx,any+aty,DRED,3.2);
+      lbl('āₙ',pxx+anx-un.x*14,pyy+any-un.y*14,RED);
+      lbl('āₜ',pxx+atx-un.x*14,pyy+aty-un.y*14,ORANGE);
+      lbl('ā',pxx+anx+atx+un.x*8-ut.x*10,pyy+any+aty+un.y*8-ut.y*10,DRED);
+    }
+  }
+
+  // point mobile + centre
+  ctx.fillStyle='#e6f1fb';ctx.strokeStyle=BLUE;ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(pxx,pyy,7,0,7);ctx.fill();ctx.stroke();
   ctx.fillStyle=GREY;ctx.beginPath();ctx.arc(cx,cy,3,0,7);ctx.fill();ctx.font='11px system-ui';ctx.textAlign='left';ctx.fillText('O',cx+6,cy+14);
 
   document.getElementById('info').innerHTML='θ='+th.toFixed(2)+' rad | ω='+om.toFixed(2)+' rad/s | <b style="color:'+GREEN+'">|v|=R·ω='+Math.abs(v).toFixed(2)+' m/s</b> | <b style="color:'+RED+'">aₙ=R·ω²=v²/R='+an.toFixed(2)+' m/s²</b>'+(mode===1?' | <b style="color:'+ORANGE+'">aₜ=R·α='+at.toFixed(2)+' m/s²</b>':'');
